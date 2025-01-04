@@ -1,0 +1,50 @@
+@namespace Coursework.Components
+@inherits LayoutComponentBase
+<div class="dashboard">
+    <aside class="sidebar">
+        <ul>
+            <li><a href="/">Dashboard</a></li>
+            <li><a href="/transactions">Transactions</a></li>
+            <li><a href="/debtss">Debt</a></li>
+      
+        </ul>
+    </aside>
+    <main>
+        @Body
+    </main>
+</div>
+<style>
+    .dashboard {
+        display: flex;
+        height: 100vh;
+    }
+
+    .sidebar {
+        width: 250px;
+        background-color: #f4f4f4;
+        padding: 10px;
+        border-right: 1px solid #ddd;
+    }
+
+    .sidebar ul {
+        list-style: none;
+        padding: 0;
+    }
+
+    .sidebar ul li {
+        margin-bottom: 10px;
+    }
+
+    .sidebar ul li a {
+        text-decoration: none;
+        margin:10px;
+        color: #333;
+        font-size: 19px;
+    }
+
+    main {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+    }
+</style>

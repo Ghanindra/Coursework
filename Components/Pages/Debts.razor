@@ -1,0 +1,216 @@
+@page "/debtss"
+@using Coursework.Models
+@inject UserService UserService
+
+<h1>User Debts</h1>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Debt ID</th>
+            <th>Total Debt</th>
+            <th>Paid Amount</th>
+            <th>Remaining Debt</th>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Status</th> <!-- Added Status column -->
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var debt in Data.Debts)
+        {
+            <tr>
+                <td>@debt.Id</td>
+                <td>@debt.Amount</td>
+                <td>@debt.PaidAmount</td>
+                <td>@(debt.Amount - debt.PaidAmount)</td>
+                <td>@debt.Date.ToString("MM/dd/yyyy")</td>
+                <td>@debt.Description</td>
+                @* <td>@debt.Status</td> <!-- Displaying Status --> *@
+                <td class="@(debt.Status == "Cleared" ? "status-cleared" : "status-pending")">
+                    @debt.Status
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2>Add New Debt</h2>
+<EditForm Model="newDebt" OnValidSubmit="HandleDebtSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+
+
+    <div class="form-group">
+        <label for="amount">Debt Amount</label>
+        <InputNumber id="amount" @bind-Value="newDebt.Amount" class="form-control" />
+    </div>
+
+    <div class="form-group">
+        <label for="paidAmount">Paid Amount</label>
+        <InputNumber id="paidAmount" @bind-Value="newDebt.PaidAmount" class="form-control" />
+    </div>
+
+    <div class="form-group">
+        <label for="description">Description</label>
+        <InputText id="description" @bind-Value="newDebt.Description" class="form-control" />
+    </div>
+
+    <div class="form-group">
+        <button type="submit" class="btn btn-primary">Add Debt</button>
+    </div>
+</EditForm>
+
+@code {
+    private AppData Data;
+    private Debt newDebt = new Debt();
+
+    protected override void OnInitialized()
+    {
+        Data = UserService.LoadData();
+    }
+
+    private void HandleDebtSubmit()
+    {
+        newDebt.Id = Data.Debts.Count + 1;
+        newDebt.Date = DateTime.Now;
+        // Check if the debt is cleared based on the amount paid
+        newDebt.Status = newDebt.PaidAmount >= newDebt.Amount ? "Cleared" : "pending";
+        Data.Debts.Add(newDebt);
+        UserService.SaveData(Data);
+
+        // Reset form
+        newDebt = new Debt();
+    }
+    private void UpdatePaidAmount(int debtId, decimal additionalPayment)
+    {
+        var debt = Data.Debts.FirstOrDefault(d => d.Id == debtId);
+        if (debt != null && additionalPayment > 0) // Only allow positive payments
+        {
+            debt.PaidAmount += additionalPayment;
+
+            // Update the status if the debt is fully cleared
+            debt.Status = debt.PaidAmount >= debt.Amount ? "Cleared" : "pending";
+
+            // Save updated data
+            UserService.SaveData(Data);
+        }
+    }
+
+}
+<style>
+    /* General Styles */
+    body {
+        font-family: 'Arial', sans-serif;
+        background-color: #f9f9f9; /* Light background for readability */
+        color: #333; /* Standard text color */
+        margin: 0;
+        padding: 0;
+    }
+
+    h1, h2 {
+        color: #2c3e50; /* Dark blue for headings */
+    }
+
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #fff; /* White table background */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Soft shadow for table */
+    }
+
+        .table thead {
+            background-color: #2c3e50; /* Dark blue for the header */
+            color: #fff; /* White text for contrast */
+        }
+
+        .table th, .table td {
+            padding: 12px 15px;
+            border: 1px solid #ddd; /* Subtle border */
+            text-align: left;
+        }
+
+        .table tbody tr:nth-child(even) {
+            background-color: #f4f4f4; /* Alternating row color */
+        }
+
+        .table tbody tr:hover {
+            background-color: #e1eaf1; /* Highlight on hover */
+            transition: background-color 0.3s ease; /* Smooth hover effect */
+        }
+
+    /* Form Styles */
+    form {
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 5px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Soft shadow for the form */
+        margin: 20px 0;
+    }
+
+        form label {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        form .form-group {
+            margin-bottom: 15px;
+        }
+
+        form .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+            form .form-control:focus {
+                border-color: #2980b9; /* Blue outline on focus */
+                box-shadow: 0 0 5px rgba(41, 128, 185, 0.5); /* Glow effect */
+                outline: none;
+            }
+
+        form button {
+            background-color: #2980b9; /* Blue button */
+            color: #fff;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+
+            form button:hover {
+                background-color: #1f6a9e; /* Darker blue on hover */
+            }
+
+    /* Status Styling */
+    .table td:last-child {
+        font-weight: bold;
+    }
+
+        .table td:last-child:contains("Cleared") {
+            color: #27ae60; /* Green for cleared debts */
+        }
+
+        .table td:last-child:contains("pending") {
+            color: #e74c3c; /* Red for pending debts */
+        }
+
+    .status-cleared {
+        color: #27ae60; /* Green for cleared debts */
+        font-weight: bold;
+    }
+
+    .status-pending {
+        color: #e74c3c; /* Red for pending debts */
+        font-weight: bold;
+    }
+
+</style>
+

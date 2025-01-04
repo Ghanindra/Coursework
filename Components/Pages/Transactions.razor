@@ -1,0 +1,372 @@
+@page "/transactions"
+@using Coursework.Models
+@inject UserService UserService
+@inject IJSRuntime JSRuntime
+
+<h1>User Transactions</h1>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Transaction ID</th>
+            <th> Total Balance</th>
+            <th>Type</th>
+            <th>Debit</th>
+            <th>Credit</th>
+            <th>Tags</th>
+            <th>Date</th>
+            <th>Note</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var transaction in Data.Transactions)
+        {
+            <tr>
+                <td>@transaction.Id</td>
+                <td>@(Data.Transactions.Sum(t => t.Credit) - Data.Transactions.Sum(t => t.Debit))</td>
+                <td>@transaction.Type</td>
+                <td>@transaction.Debit</td>
+                <td>@transaction.Credit</td>
+                <td>@string.Join(", ", transaction.Tags ?? new List<string>())</td>
+                <td>@transaction.Date.ToString("MM/dd/yyyy")</td>
+                <td>@transaction.Description</td>
+                <td>
+                    <button class="btn btn-warning" @onclick="() => EditTransaction(transaction)">Edit</button>
+                    <button class="btn btn-danger" @onclick="() => DeleteTransaction(transaction.Id)">Delete</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2>@(isEditMode ? "Edit" : "Add New") Transaction</h2>
+<EditForm Model="newTransaction" OnValidSubmit="HandleTransactionSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-group">
+        <label for="type">Transaction Type</label>
+        <InputSelect id="type" @bind-Value="newTransaction.Type" class="form-control" @onchange="OnTransactionTypeChange">
+            <option value="">Select Type</option>
+            <option value="Credit">Credit</option>
+            <option value="Debit">Debit</option>
+        </InputSelect>
+        @if (string.IsNullOrEmpty(newTransaction.Type))
+        {
+            <span class="text-danger">Transaction type is required.</span>
+        }
+    </div>
+
+    @if (newTransaction.Type == "Credit")
+    {
+        <div class="form-group">
+            <label for="credit">Money Inflow (Credit)</label>
+            <InputNumber id="credit" @bind-Value="newTransaction.Credit" class="form-control" />
+            @if (newTransaction.Credit <= 0)
+            {
+                <span class="text-danger">Please enter a valid credit amount.</span>
+            }
+        </div>
+
+        <div class="form-group">
+            <label for="tags">Tags (Select One or More)</label>
+            <select multiple class="form-control" @onchange="OnTagsChange">
+                @foreach (var tag in defaultTags)
+                {
+                    <option value="@tag" selected="@(selectedTags.Contains(tag))">@tag</option>
+                }
+            </select>
+            @if (selectedTags.Count == 0)
+            {
+                <span class="text-danger">Please select at least one tag.</span>
+            }
+        </div>
+    }
+
+    @if (newTransaction.Type == "Debit")
+    {
+        <div class="form-group">
+            <label for="debit">Money Outflow (Debit)</label>
+            <InputNumber id="debit" @bind-Value="newTransaction.Debit" class="form-control" />
+            @if (newTransaction.Debit <= 0)
+            {
+                <span class="text-danger">Please enter a valid debit amount.</span>
+            }
+            else if (!IsSufficientBalance(newTransaction.Debit))
+            {
+                <span class="text-danger">Insufficient balance for this outflow.</span>
+            }
+        </div>
+    }
+
+    <div class="form-group">
+        <label for="description">Note</label>
+        <InputText id="description" @bind-Value="newTransaction.Description" class="form-control" />
+        @if (string.IsNullOrEmpty(newTransaction.Description))
+        {
+            <span class="text-danger">Description is required.</span>
+        }
+    </div>
+
+    <div class="form-group">
+        <button type="submit" class="btn btn-primary" disabled="@(!CanSubmitTransaction())">@(isEditMode ? "Update" : "Add") Transaction</button>
+    </div>
+</EditForm>
+
+@code {
+    private AppData Data;
+    private Transaction newTransaction = new Transaction();
+    private List<string> defaultTags = new List<string>
+    {
+        "Yearly", "Monthly", "Food", "Drinks", "Clothes", "Gadgets", "Miscellaneous", "Fuel", "Rent", "EMI", "Party"
+    };
+
+    private List<string> selectedTags = new List<string>();
+    private bool isEditMode = false;
+
+    protected override void OnInitialized()
+    {
+        Data = UserService.LoadData();
+        newTransaction.Date = DateTime.Now;
+    }
+
+    private void HandleTransactionSubmit()
+    {
+        if (newTransaction.Type == "Debit" && !IsSufficientBalance(newTransaction.Debit))
+        {
+            // Show alert for insufficient balance
+            ShowAlert("Insufficient balance for this outflow.");
+            return;
+        }
+
+        newTransaction.Date = DateTime.Now;
+
+        if (isEditMode)
+        {
+            var transaction = Data.Transactions.FirstOrDefault(t => t.Id == newTransaction.Id);
+            if (transaction != null)
+            {
+                transaction.Type = newTransaction.Type;
+                transaction.Credit = newTransaction.Credit;
+                transaction.Debit = newTransaction.Debit;
+                transaction.Tags = new List<string>(selectedTags);
+                transaction.Description = newTransaction.Description;
+            }
+        }
+        else
+        {
+            newTransaction.Id = Data.Transactions.Count + 1;
+            newTransaction.Tags = new List<string>(selectedTags);
+            Data.Transactions.Add(newTransaction);
+        }
+
+        UserService.SaveData(Data);
+        newTransaction = new Transaction { Date = DateTime.Now };
+        selectedTags.Clear();
+        isEditMode = false;
+    }
+    private async void ShowAlert(string message)
+    {
+        await JSRuntime.InvokeVoidAsync("alert", message);
+    }
+
+    private void OnTransactionTypeChange(ChangeEventArgs e)
+    {
+        newTransaction.Type = e.Value.ToString();
+    }
+
+    private void OnTagsChange(ChangeEventArgs e)
+    {
+        if (e.Value is IEnumerable<string> selected)
+        {
+            selectedTags = selected.ToList();
+        }
+        else if (e.Value is string singleValue)
+        {
+            selectedTags = singleValue.Split(',').Select(s => s.Trim()).ToList();
+        }
+
+        newTransaction.Tags = new List<string>(selectedTags);
+    }
+
+    private bool IsSufficientBalance(decimal outflow)
+    {
+        var currentBalance = Data.Transactions.Sum(t => t.Credit) - Data.Transactions.Sum(t => t.Debit);
+        return outflow <= currentBalance;
+    }
+
+    private bool CanSubmitTransaction()
+    {
+        if (newTransaction.Type == "Debit")
+        {
+            return IsSufficientBalance(newTransaction.Debit) && newTransaction.Debit > 0;
+        }
+        else if (newTransaction.Type == "Credit")
+        {
+            return newTransaction.Credit > 0 && !string.IsNullOrEmpty(newTransaction.Description);
+        }
+        return !string.IsNullOrEmpty(newTransaction.Type) && !string.IsNullOrEmpty(newTransaction.Description);
+    }
+
+    private void EditTransaction(Transaction transaction)
+    {
+        newTransaction = new Transaction
+            {
+                Id = transaction.Id,
+                Type = transaction.Type,
+                Credit = transaction.Credit,
+                Debit = transaction.Debit,
+                Tags = new List<string>(transaction.Tags ?? new List<string>()),
+                Date = transaction.Date,
+                Description = transaction.Description
+            };
+        selectedTags = new List<string>(transaction.Tags ?? new List<string>());
+        isEditMode = true;
+    }
+
+    private void DeleteTransaction(int id)
+    {
+        var transaction = Data.Transactions.FirstOrDefault(t => t.Id == id);
+        if (transaction != null)
+        {
+            Data.Transactions.Remove(transaction);
+            UserService.SaveData(Data);
+        }
+    }
+}
+<style>
+   
+    /* General Page Styling */
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f8f9fa;
+        color: #333;
+        margin: 0;
+        padding: 0;
+    }
+
+    /* Heading Styles */
+    h1 {
+        text-align: center;
+        color: #007bff;
+        margin-bottom: 20px;
+    }
+
+    h2 {
+        color: #0056b3;
+        margin-top: 30px;
+    }
+
+    /* Table Styles */
+    .table {
+        width: 100%;
+        margin: 20px auto;
+        border-collapse: collapse;
+        background-color: #ffffff;
+        border: 1px solid #dee2e6;
+    }
+
+        .table th,
+        .table td {
+            text-align: left;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+        }
+
+        .table th {
+            background-color: #007bff;
+            color: white;
+            text-transform: uppercase;
+            font-size: 14px;
+        }
+
+        .table tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        .table tr:hover {
+            background-color: #d9edf7;
+        }
+
+    /* Form Styles */
+    form {
+        width: 50%;
+        margin: 20px auto;
+        padding: 15px;
+        background-color: #ffffff;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select,
+    button {
+        width: 100%;
+        padding: 10px;
+        margin-top: 5px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    /* Button Styles */
+
+    /* Button Styles */
+    button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Edit Button Styling */
+        button.btn-warning {
+            background-color: #17a2b8; /* Light Blue */
+            color: white;
+        }
+
+            button.btn-warning:hover {
+                background-color: #138496; /* Darker Blue */
+            }
+
+        /* Delete Button Styling */
+        button.btn-danger {
+            background-color: #e74c3c; /* Red */
+            color: white;
+        }
+
+            button.btn-danger:hover {
+                background-color: #c0392b; /* Darker Red */
+            }
+
+
+    /* Error Message Styling */
+    .text-danger {
+        color: #dc3545;
+        font-size: 12px;
+    }
+
+    /* Multi-select Styling */
+    select[multiple] {
+        height: 100px;
+    }
+
+</style>
