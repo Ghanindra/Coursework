@@ -23,13 +23,16 @@
                 <td>@debt.Id</td>
                 <td>@debt.Amount</td>
                 <td>@debt.PaidAmount</td>
-                <td>@(debt.Amount - debt.PaidAmount)</td>
+                <td>@(debt.Amount-debt.PaidAmount)</td>
                 <td>@debt.Date.ToString("MM/dd/yyyy")</td>
                 <td>@debt.Description</td>
                 @* <td>@debt.Status</td> <!-- Displaying Status --> *@
                 <td class="@(debt.Status == "Cleared" ? "status-cleared" : "status-pending")">
                     @debt.Status
                 </td>
+
+             
+
             </tr>
         }
     </tbody>
@@ -73,6 +76,7 @@
 
     private void HandleDebtSubmit()
     {
+       
         newDebt.Id = Data.Debts.Count + 1;
         newDebt.Date = DateTime.Now;
         // Check if the debt is cleared based on the amount paid
@@ -89,7 +93,7 @@
         if (debt != null && additionalPayment > 0) // Only allow positive payments
         {
             debt.PaidAmount += additionalPayment;
-
+           
             // Update the status if the debt is fully cleared
             debt.Status = debt.PaidAmount >= debt.Amount ? "Cleared" : "pending";
 

@@ -1,0 +1,378 @@
+@page "/dashboard"
+@layout DashboardLayout
+@using Coursework.Models
+@* @using System.Transactions *@
+@inject UserService UserService
+
+<h1>Dashboard</h1>
+
+<div class="row">
+    <div class="col-md-4">
+        <h2>Data Overview</h2>
+        <ul>
+            <li>Total Inflows: @(Data.Transactions.Where(t => t.Credit > 0).Any() ? Data.Transactions.Where(t => t.Credit > 0).Sum(t => t.Credit) : 0)</li>
+            <li>Total Outflows: @(Data.Transactions.Where(t => t.Debit > 0).Any() ? Data.Transactions.Where(t => t.Debit > 0).Sum(t => t.Debit) : 0)</li>
+            <li>Total Debts: @(Data.Debts.Any() ? Data.Debts.Sum(d => d.Amount) : 0)</li>
+            <li>Cleared Debts: @(Data.Debts.Any() ? Data.Debts.Sum(d => d.PaidAmount) : 0)</li>
+            <li>Remaining Debts: @(Data.Debts.Any() ? Data.Debts.Sum(d => d.Amount - d.PaidAmount) : 0)</li>
+        </ul>
+    </div>
+
+    <div class="col-md-4">
+        <h2>Peak/bottom Transactions</h2>
+        <ul>
+            <li>Highest Inflow: @(Data.Transactions.Where(t => t.Credit > 0).Any() ? Data.Transactions.Where(t => t.Credit > 0).Max(t => t.Credit) : 0)</li>
+            <li>Lowest Inflow: @(Data.Transactions.Where(t => t.Credit > 0).Any() ? Data.Transactions.Where(t => t.Credit > 0).Min(t => t.Credit) : 0)</li>
+            <li>Highest Outflow: @(Data.Transactions.Where(t => t.Debit > 0).Any() ? Data.Transactions.Where(t => t.Debit > 0).Max(t => t.Debit) : 0)</li>
+            <li>Lowest Outflow: @(Data.Transactions.Where(t => t.Debit > 0).Any() ? Data.Transactions.Where(t => t.Debit > 0).Min(t => t.Debit) : 0)</li>
+            <li>Highest Debt: @(Data.Debts.Any() ? Data.Debts.Max(d => d.Amount) : 0)</li>
+            <li>Lowest Debt: @(Data.Debts.Where(d => d.Amount > 0).Any() ? Data.Debts.Where(d => d.Amount > 0).Min(d => d.Amount) : 0)</li>
+
+        </ul>
+    </div>
+
+
+    <div class="col-md-4">
+        <h2>Pending Debts</h2>
+        <ul>
+            @if (Data.Debts != null && Data.Debts.Any())
+            {
+                @foreach (var debt in Data.Debts.Where(d => d.Amount > d.PaidAmount))
+                {
+                    <!-- Only show debts that are not fully paid -->
+                    <li>
+                        @debt.Description - Remaining: @(debt.Amount - debt.PaidAmount)
+
+
+                        <!-- Button to make a payment, which would clear the debt -->
+
+                    </li>
+                }
+            }
+            else
+            {
+                <li>No pending debts.</li>  <!-- Message if there are no pending debts -->
+            }
+        </ul>
+    </div>
+
+</div>
+
+<h2>Transaction List</h2>
+<div>
+    <input type="text" @bind="searchTerm" placeholder="Search by note" class="form-control mb-2" />
+    <!-- Date Filters -->
+    <label>From Date:</label>
+    <input type="date" @bind="fromDate" class="form-control mb-2" />
+
+    <label>To Date:</label>
+    <input type="date" @bind="toDate" class="form-control mb-2" />
+
+    <select @bind="filterType" class="form-control mb-2">
+        <option value="">All</option>
+        <option value="Credit">Credit</option>
+        <option value="Debit">Debit</option>
+        <option value="Debt">Debt</option>
+    </select>
+
+    <button @onclick="FilterTransactions" class="btn btn-primary mb-2">Filter</button>
+</div>
+<label>Sort By:</label>
+<select @onchange="SortTransactions" class="form-control mb-2">
+    <option value="">None</option>
+    <option value="Asc">Amount (Low to High)</option>
+    <option value="Desc">Amount (High to Low)</option>
+</select>
+
+@code {
+    private void SortTransactions(ChangeEventArgs e)
+    {
+        sortOrder = e.Value?.ToString();
+
+        if (sortOrder == "Asc")
+        {
+            filteredTransactions = filteredTransactions.OrderBy(t => t.Credit > 0 ? t.Credit : t.Debit).ToList();
+        }
+        else if (sortOrder == "Desc")
+        {
+            filteredTransactions = filteredTransactions.OrderByDescending(t => t.Credit > 0 ? t.Credit : t.Debit).ToList();
+        }
+        else
+        {
+            filteredTransactions = Data.Transactions.ToList();
+        }
+    }
+}
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Amount</th>
+            <th>Tags</th>
+            <th>Note</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var transaction in filteredTransactions)
+        {
+            <tr>
+                <td>@transaction.Date.ToString("MM/dd/yyyy")</td>
+
+                <!-- Displaying the type (Credit or Debit) -->
+                <td>@(transaction.Credit > 0 ? "Credit" : transaction.Debit > 0 ? "Debit" : "N/A")</td>
+
+                <!-- Displaying Amount (either Credit or Debit) -->
+                <td>@(transaction.Credit > 0 ? transaction.Credit.ToString("C") : transaction.Debit > 0 ? transaction.Debit.ToString("C") : "N/A")</td>
+
+                <!-- Displaying Tags as a comma-separated list -->
+                <td>@(string.Join(", ", transaction.Tags ?? new List<string>()))</td>
+
+                <!-- Displaying the Note (if available) -->
+                <td>@transaction.Description </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<div class="row">
+    <div class="col-md-5">
+        <h2>Top 5 Highest Transactions</h2>
+        <ul>
+            @if (topHighestTransactions.Any())
+            {
+                @foreach (var transaction in topHighestTransactions)
+                {
+                    <li>
+                        @transaction.Date.ToString("MM/dd/yyyy") - @(transaction.Credit > 0 ? "Credit" : "Debit") -
+                        @((transaction.Credit > 0 ? transaction.Credit : transaction.Debit).ToString("C")) -
+                        @transaction.Description
+                    </li>
+                }
+            }
+            else
+            {
+                <li>No transactions available.</li>
+            }
+        </ul>
+    </div>
+
+    <div class="col-md-6">
+        <h2>Top 5 Lowest Transactions</h2>
+        <ul>
+            @if (topLowestTransactions.Any())
+            {
+                @foreach (var transaction in topLowestTransactions)
+                {
+                    <li>
+                        @transaction.Date.ToString("MM/dd/yyyy") - @(transaction.Credit > 0 ? "Credit" : "Debit") -
+                        @((transaction.Credit > 0 ? transaction.Credit : transaction.Debit).ToString("C")) -
+                        @transaction.Description
+                    </li>
+                }
+            }
+            else
+            {
+                <li>No transactions available.</li>
+            }
+        </ul>
+    </div>
+</div>
+@code {
+    private AppData Data;
+    private string searchTerm = "";
+    private string filterType = "";
+    private DateTime? fromDate = null;  // From Date for filtering
+    private DateTime? toDate = null;    // To Date for filtering
+    private string sortOrder = "";     // Sort Order: Ascending or Descending
+    private List<Transaction> topHighestTransactions = new List<Transaction>();
+    private List<Transaction> topLowestTransactions = new List<Transaction>();
+    private IEnumerable<Transaction> filteredTransactions;
+
+    protected override void OnInitialized()
+    {
+        Data = UserService.LoadData();
+        filteredTransactions = Data.Transactions;
+        ;
+        // Calculate top 5 highest transactions
+        topHighestTransactions = Data.Transactions
+            .OrderByDescending(t => t.Credit > 0 ? t.Credit : t.Debit)
+            .Take(5)
+            .ToList();
+
+        // Calculate top 5 lowest transactions
+        topLowestTransactions = Data.Transactions
+            .Where(t => t.Credit > 0 || t.Debit > 0)
+            .OrderBy(t => t.Credit > 0 ? t.Credit : t.Debit)
+            .Take(5)
+            .ToList();
+    }
+
+    private void FilterTransactions()
+    {
+        filteredTransactions = Data.Transactions
+            .Where(t => string.IsNullOrWhiteSpace(searchTerm) || t.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            .Where(t => string.IsNullOrWhiteSpace(filterType) ||
+                        (filterType == "Credit" && t.Credit > 0) ||
+                        (filterType == "Debit" && t.Debit > 0) ||
+                        (filterType == "Debt" && t is Debt))
+                         .Where(t => !fromDate.HasValue || t.Date.Date >= fromDate.Value.Date)
+            .Where(t => !toDate.HasValue || t.Date.Date <= toDate.Value.Date);
+
+        // Sorting logic
+        if (sortOrder == "Asc")
+        {
+            filteredTransactions = filteredTransactions.OrderBy(t => t.Credit > 0 ? t.Credit : t.Debit);
+        }
+        else if (sortOrder == "Desc")
+        {
+            filteredTransactions = filteredTransactions.OrderByDescending(t => t.Credit > 0 ? t.Credit : t.Debit);
+        }
+    }
+
+}
+<style>
+
+    body {
+        font-family: Arial, sans-serif;
+        /* background-color: #D3D3D3; */
+        color: #333;
+        margin: 0;
+        padding: 0;
+    }
+
+    h1, h2 {
+        /* color: #007bff; */
+        color: black;
+    }
+
+    ul {
+        list-style: none;
+        padding: 0;
+    }
+
+    li {
+        margin: 5px 0;
+    }
+
+    /* Row and Column Layout */
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+        margin: 10px -15px;
+    }
+
+    .col-md-4 {
+        flex: 0 0 33.3333%;
+        max-width: 33.3333%;
+        padding: 15px;
+        box-sizing: border-box;
+        border-radius: 8px;
+        color: white; /* Ensures text is visible against the background */
+    }
+
+    .col-md-5 {
+        flex: 0 0 33.3333%;
+        max-width: 33.3333%;
+        padding: 15px;
+        box-sizing: border-box;
+        border-radius: 8px;
+        color: white; /* Ensures text is visible against the background */
+        background-color: #4caf50; /* Green for Statistics Overview */
+        margin-left: 50px;
+    }
+
+    .col-md-6 {
+        flex: 0 0 33.3333%;
+        max-width: 33.3333%;
+        padding: 15px;
+        box-sizing: border-box;
+        border-radius: 8px;
+        color: white; /* Ensures text is visible against the background */
+        background-color: #2196f3; /* Blue for Highest/Lowest Transactions */
+        margin-left: 50px;
+    }
+
+    h2 {
+        margin-bottom: 10px;
+        font-size: 1.5rem;
+    }
+
+    /* Specific Section Background Colors */
+    .col-md-4:nth-child(1) {
+        background-color: #4caf50; /* Green for Statistics Overview */
+    }
+
+    .col-md-4:nth-child(2) {
+        background-color: #2196f3; /* Blue for Highest/Lowest Transactions */
+    }
+
+    .col-md-4:nth-child(3) {
+        background-color: #f44336; /* Red for Pending Debts */
+    }
+
+    /* Input and Filter Controls */
+    input[type="text"], select {
+        width: 100%;
+        padding: 8px;
+        margin-bottom: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 1rem;
+    }
+
+    button {
+        padding: 10px 20px;
+        font-size: 1rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+        /* Button Styles */
+        button.btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+
+            button.btn-primary:hover {
+                background-color: #0056b3;
+            }
+
+    /* Table Styles */
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        background-color: white;
+    }
+
+        .table th, .table td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #dee2e6;
+        }
+
+        .table thead th {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .table tbody tr:nth-child(odd) {
+            background-color: #f8f9fa;
+        }
+
+    /* Pending Debts Section */
+    div ul li {
+        font-size: 0.9rem;
+        padding: 5px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+        div ul li:not(:last-child) {
+            margin-bottom: 5px;
+        }
+</style>

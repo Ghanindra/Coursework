@@ -1,0 +1,118 @@
+@page "/login"
+@inject UserService UserService
+@using Coursework.Models
+@inject NavigationManager NavigationManager
+
+<h3>Login</h3>
+
+<div>
+    <input @bind="LoginUsername" placeholder="Username" />
+    <input @bind="LoginPassword" placeholder="Password" type="password" />
+    <button @onclick="LoginUser">Login</button>
+</div>
+
+@if (!string.IsNullOrEmpty(Message))
+{
+    <p>@Message</p>
+}
+   <div class="register-link">
+            <p>Create an Account? <a href="/register">Sign up</a></p>
+        </div>
+@code {
+    private string LoginUsername = "";
+    private string LoginPassword = "";
+    private string Message = "";
+
+    private async Task LoginUser()
+    {
+        // Input validation
+        if (string.IsNullOrWhiteSpace(LoginUsername) || string.IsNullOrWhiteSpace(LoginPassword))
+        {
+            Message = "Username and password are required.";
+            return;
+        }
+
+        // Load existing users
+        var users = UserService.LoadUsers();
+
+        // Find the user by username
+        var user = users.FirstOrDefault(u => u.Username == LoginUsername);
+
+        if (user == null)
+        {
+            Message = "Invalid username or password.";
+            return;
+        }
+
+        // Validate the password
+        if (!UserService.ValidatePassword(LoginPassword, user.Password))
+        {
+            Message = "Invalid username or password.";
+            return;
+        }
+
+        // Successful login
+        Message = "Login successful! Redirecting to home...";
+        await Task.Delay(2000);
+        NavigationManager.NavigateTo("/dashboard");
+    }
+}
+<style>
+    .login-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #f4f4f9;
+    }
+
+    .login-form {
+        background-color: #fff;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        width: 300px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    h3 {
+        text-align: center;
+        margin-bottom: 20px;
+        color: #333;
+    }
+
+    .input-field {
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 16px;
+        outline: none;
+    }
+
+        .input-field:focus {
+            border-color: #4A90E2;
+        }
+
+    .login-button {
+        background-color: #4A90E2;
+        color: white;
+        border: none;
+        padding: 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+    }
+
+        .login-button:hover {
+            background-color: #357ABD;
+        }
+
+    .message {
+        text-align: center;
+        color: red;
+        font-size: 14px;
+    }
+</style>

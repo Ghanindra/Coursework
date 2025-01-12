@@ -1,23 +1,27 @@
 ﻿@namespace Coursework.Components
+@inject NavigationManager NavigationManager
 
 <div class="nav-menu">
     <nav>
         <ul>
-            <!-- Link to the home page -->
-            <li><NavLink href="/" class="nav-link">Back</NavLink></li>
+            @if (NavigationManager.Uri != NavigationManager.BaseUri) 
+            {
+                <!-- Link to the dashboard page -->
+                <li><NavLink href="/dashboard" class="nav-link">Back</NavLink></li>
+            }
         </ul>
     </nav>
 </div>
+
 <style>
     .nav-menu ul {
-        list-style-type: none; /* Removes list dots */
-        padding: 0; /* Removes default padding */
-        margin: 0; /* Removes default margin */
+        list-style-type: none;
+        padding: 0; 
+        margin: 0; 
     }
 
     .nav-menu li {
-        margin: 0.5rem 0; /* Adds spacing between items */
-       
+        margin: 0.5rem 0; 
     }
 
     .nav-menu .nav-link {
@@ -26,12 +30,11 @@
         padding: 0.5rem 1rem;
         border-radius: 4px;
         transition: background-color 0.3s ease, color 0.3s ease;
-        font-size:26px;
+        font-size: 26px;
     }
 
-        .nav-menu .nav-link:hover {
-            background-color: #0078d4; /* Highlight color */
-            color: white; /* Hover text color */
-        }
-
+    .nav-menu .nav-link:hover {
+        background-color: #0078d4; /* Highlight color */
+        color: white; /* Hover text color */
+    }
 </style>

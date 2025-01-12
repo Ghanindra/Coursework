@@ -1,0 +1,158 @@
+
+@page "/register"
+@inject UserService UserService
+@using Coursework.Models
+@inject NavigationManager NavigationManager
+
+
+<div class="register-container">
+    <div class="register-form">
+        <input @bind="RegisterUsername" placeholder="Username" class="input-field" />
+        <input @bind="RegisterPassword" placeholder="Password" type="password" class="input-field" />
+        <input @bind="RegisterEmail" placeholder="Email" class="input-field" />
+        <button @onclick="RegisterUser" class="register-button">Register</button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Message))
+    {
+            <p class="message">@Message</p>
+    }
+    <!-- Link to the Login page for already registered users -->
+        <div class="login-link">
+            <p>Already registered? <a href="/login">Login here</a></p>
+        </div>
+   
+</div>
+
+@code {
+    private string RegisterUsername = "";
+    private string RegisterPassword = "";
+    private string RegisterEmail = "";
+    private string Message = "";
+    private bool IsRegistrationSuccessful = false;
+
+    private async Task RegisterUser()
+    {
+        // Input validation
+        if (string.IsNullOrWhiteSpace(RegisterUsername) || string.IsNullOrWhiteSpace(RegisterPassword))
+        {
+            Message = "Username and password are required.";
+            return;
+        }
+
+        // Load existing users
+        var users = UserService.LoadUsers();
+
+        // Check if the username already exists
+        if (users.Any(u => u.Username == RegisterUsername))
+        {
+            // Inform the user that the username is already taken
+            Message = "Username already exists. Please login.";
+            await Task.Delay(2000);
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
+
+        // Create new user and hash the password
+        var newUser = new User
+            {
+                Username = RegisterUsername,
+                Password = UserService.HashPassword(RegisterPassword),
+                Email = RegisterEmail
+            };
+
+        // Save the new user
+        users.Add(newUser);
+        UserService.SaveUsers(users);
+
+        // Set successful registration message
+        Message = "Registration successful! Redirecting to login...";
+        IsRegistrationSuccessful = true;
+        await Task.Delay(2000);
+        NavigationManager.NavigateTo("/login");
+       
+    }
+    
+}
+
+<style>
+    .register-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #f4f4f9;
+    }
+
+    .register-form {
+        background-color: #fff;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        width: 300px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    h3 {
+        text-align: center;
+        margin-bottom: 20px;
+        color: #333;
+    }
+
+    .input-field {
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 16px;
+        outline: none;
+    }
+
+    .input-field:focus {
+        border-color: #4A90E2;
+    }
+
+    .register-button {
+        background-color: #4A90E2;
+        color: white;
+        border: none;
+        padding: 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+    }
+
+    .register-button:hover {
+        background-color: #357ABD;
+    }
+
+    .message {
+        text-align: center;
+        color: red;
+        font-size: 14px;
+    }
+
+    .confirmation {
+        text-align: center;
+        margin-top: 20px;
+    }
+
+    .login-link {
+        text-align: center;
+          margin-top:340px;
+          margin-left:-250px;
+        font-size: 14px;
+    }
+
+    .login-link a {
+        color: #4A90E2;
+        text-decoration: none;
+     
+    }
+
+    .login-link a:hover {
+        text-decoration: underline;
+    }
+</style>
