@@ -5,11 +5,19 @@
 
 <h1>User Transactions</h1>
 
+<!-- Add a message for insufficient balance -->
+@if (insufficientBalance)
+{
+    <div class="alert alert-danger">
+        Insufficient balance to complete the transaction.
+    </div>
+}
+
 <table class="table">
     <thead>
         <tr>
             <th>Transaction ID</th>
-            <th> Total Balance</th>
+            <th>Total Balance</th>
             <th>Type</th>
             <th>Debit</th>
             <th>Credit</th>
@@ -24,7 +32,7 @@
         {
             <tr>
                 <td>@transaction.Id</td>
-                <td>@(Data.Transactions.Sum(t => t.Credit) - Data.Transactions.Sum(t => t.Debit))</td>
+                <td>@TotalBalance</td> <!-- Display Total Balance -->
                 <td>@transaction.Type</td>
                 <td>@transaction.Debit</td>
                 <td>@transaction.Credit</td>
@@ -49,68 +57,46 @@
         <label for="type">Transaction Type</label>
         <InputSelect id="type" @bind-Value="newTransaction.Type" class="form-control" @onchange="OnTransactionTypeChange">
             <option value="">Select Type</option>
-            <option value="Credit">Credit</option>
-            <option value="Debit">Debit</option>
+            <option value="Credit">Inflow</option>
+            <option value="Debit">Outflow</option>
         </InputSelect>
-        @if (string.IsNullOrEmpty(newTransaction.Type))
-        {
-            <span class="text-danger">Transaction type is required.</span>
-        }
     </div>
 
     @if (newTransaction.Type == "Credit")
     {
         <div class="form-group">
-            <label for="credit">Money Inflow (Credit)</label>
+            <label for="credit">Inflow Amount</label>
             <InputNumber id="credit" @bind-Value="newTransaction.Credit" class="form-control" />
-            @if (newTransaction.Credit <= 0)
-            {
-                <span class="text-danger">Please enter a valid credit amount.</span>
-            }
         </div>
 
         <div class="form-group">
-            <label for="tags">Tags (Select One or More)</label>
+            <label for="tags">Tags</label>
             <select multiple class="form-control" @onchange="OnTagsChange">
                 @foreach (var tag in defaultTags)
                 {
                     <option value="@tag" selected="@(selectedTags.Contains(tag))">@tag</option>
                 }
             </select>
-            @if (selectedTags.Count == 0)
-            {
-                <span class="text-danger">Please select at least one tag.</span>
-            }
         </div>
     }
 
     @if (newTransaction.Type == "Debit")
     {
         <div class="form-group">
-            <label for="debit">Money Outflow (Debit)</label>
+            <label for="debit">Outflow Amount</label>
             <InputNumber id="debit" @bind-Value="newTransaction.Debit" class="form-control" />
-            @if (newTransaction.Debit <= 0)
-            {
-                <span class="text-danger">Please enter a valid debit amount.</span>
-            }
-            else if (!IsSufficientBalance(newTransaction.Debit))
-            {
-                <span class="text-danger">Insufficient balance for this outflow.</span>
-            }
         </div>
     }
 
     <div class="form-group">
-        <label for="description">Note</label>
+        <label for="description">Description</label>
         <InputText id="description" @bind-Value="newTransaction.Description" class="form-control" />
-        @if (string.IsNullOrEmpty(newTransaction.Description))
-        {
-            <span class="text-danger">Description is required.</span>
-        }
     </div>
 
     <div class="form-group">
-        <button type="submit" class="btn btn-primary" disabled="@(!CanSubmitTransaction())">@(isEditMode ? "Update" : "Add") Transaction</button>
+        <button type="submit" class="btn btn-primary" disabled="@(!CanSubmitTransaction())">
+            @(isEditMode ? "Update" : "Add") Transaction
+        </button>
     </div>
 </EditForm>
 
@@ -124,24 +110,31 @@
 
     private List<string> selectedTags = new List<string>();
     private bool isEditMode = false;
+    private decimal TotalBalance;
+    private bool insufficientBalance = false;
 
     protected override void OnInitialized()
     {
         Data = UserService.LoadData();
-        newTransaction.Date = DateTime.Now;
+        // Total Balance Calculation
+        TotalBalance = Data.Transactions.Sum(t => t.Credit) - Data.Transactions.Sum(t => t.Debit) +
+                       (Data.Debts?.Sum(d => d.DebtAmount) ?? 0) - (Data.Debts?.Sum(d => d.PaidAmount) ?? 0);
     }
 
     private void HandleTransactionSubmit()
     {
-        if (newTransaction.Type == "Debit" && !IsSufficientBalance(newTransaction.Debit))
+        // Check for insufficient balance for debit transactions
+        if (newTransaction.Type == "Debit" && newTransaction.Debit > TotalBalance)
         {
-            // Show alert for insufficient balance
-            ShowAlert("Insufficient balance for this outflow.");
-            return;
+            insufficientBalance = true; // Show insufficient balance message
+            return; // Prevent submission
+        }
+        else
+        {
+            insufficientBalance = false; // Reset the warning message
         }
 
-        newTransaction.Date = DateTime.Now;
-
+        // Handle adding or editing the transaction
         if (isEditMode)
         {
             var transaction = Data.Transactions.FirstOrDefault(t => t.Id == newTransaction.Id);
@@ -161,14 +154,14 @@
             Data.Transactions.Add(newTransaction);
         }
 
+        // Recalculate Total Balance after adding/updating transaction
+        TotalBalance = Data.Transactions.Sum(t => t.Credit) - Data.Transactions.Sum(t => t.Debit) +
+                       (Data.Debts?.Sum(d => d.DebtAmount) ?? 0) - (Data.Debts?.Sum(d => d.PaidAmount) ?? 0);
+
         UserService.SaveData(Data);
         newTransaction = new Transaction { Date = DateTime.Now };
         selectedTags.Clear();
         isEditMode = false;
-    }
-    private async void ShowAlert(string message)
-    {
-        await JSRuntime.InvokeVoidAsync("alert", message);
     }
 
     private void OnTransactionTypeChange(ChangeEventArgs e)
@@ -182,31 +175,12 @@
         {
             selectedTags = selected.ToList();
         }
-        else if (e.Value is string singleValue)
-        {
-            selectedTags = singleValue.Split(',').Select(s => s.Trim()).ToList();
-        }
-
-        newTransaction.Tags = new List<string>(selectedTags);
-    }
-
-    private bool IsSufficientBalance(decimal outflow)
-    {
-        var currentBalance = Data.Transactions.Sum(t => t.Credit) - Data.Transactions.Sum(t => t.Debit);
-        return outflow <= currentBalance;
     }
 
     private bool CanSubmitTransaction()
     {
-        if (newTransaction.Type == "Debit")
-        {
-            return IsSufficientBalance(newTransaction.Debit) && newTransaction.Debit > 0;
-        }
-        else if (newTransaction.Type == "Credit")
-        {
-            return newTransaction.Credit > 0 && !string.IsNullOrEmpty(newTransaction.Description);
-        }
-        return !string.IsNullOrEmpty(newTransaction.Type) && !string.IsNullOrEmpty(newTransaction.Description);
+        return !string.IsNullOrEmpty(newTransaction.Type) && !string.IsNullOrEmpty(newTransaction.Description) &&
+               (newTransaction.Type == "Credit" ? newTransaction.Credit > 0 : newTransaction.Debit > 0);
     }
 
     private void EditTransaction(Transaction transaction)
@@ -231,12 +205,16 @@
         if (transaction != null)
         {
             Data.Transactions.Remove(transaction);
+            // Recalculate Total Balance after deleting transaction
+            TotalBalance = Data.Transactions.Sum(t => t.Credit) - Data.Transactions.Sum(t => t.Debit) +
+                           (Data.Debts?.Sum(d => d.DebtAmount) ?? 0) - (Data.Debts?.Sum(d => d.PaidAmount) ?? 0);
+
             UserService.SaveData(Data);
         }
     }
 }
 <style>
-   
+
     /* General Page Styling */
     body {
         font-family: Arial, sans-serif;

@@ -1,9 +1,7 @@
-
 @page "/register"
 @inject UserService UserService
-@using Coursework.Models
 @inject NavigationManager NavigationManager
-
+@using Coursework.Models
 
 <div class="register-container">
     <div class="register-form">
@@ -15,13 +13,11 @@
 
     @if (!string.IsNullOrEmpty(Message))
     {
-            <p class="message">@Message</p>
+        <p class="message">@Message</p>
     }
-    <!-- Link to the Login page for already registered users -->
-        <div class="login-link">
-            <p>Already registered? <a href="/login">Login here</a></p>
-        </div>
-   
+    <div class="login-link">
+        <p>Already registered? <a href="/login">Login here</a></p>
+    </div>
 </div>
 
 @code {
@@ -33,27 +29,22 @@
 
     private async Task RegisterUser()
     {
-        // Input validation
         if (string.IsNullOrWhiteSpace(RegisterUsername) || string.IsNullOrWhiteSpace(RegisterPassword))
         {
             Message = "Username and password are required.";
             return;
         }
 
-        // Load existing users
         var users = UserService.LoadUsers();
 
-        // Check if the username already exists
         if (users.Any(u => u.Username == RegisterUsername))
         {
-            // Inform the user that the username is already taken
             Message = "Username already exists. Please login.";
             await Task.Delay(2000);
             NavigationManager.NavigateTo("/login");
             return;
         }
 
-        // Create new user and hash the password
         var newUser = new User
             {
                 Username = RegisterUsername,
@@ -61,18 +52,14 @@
                 Email = RegisterEmail
             };
 
-        // Save the new user
         users.Add(newUser);
         UserService.SaveUsers(users);
 
-        // Set successful registration message
         Message = "Registration successful! Redirecting to login...";
         IsRegistrationSuccessful = true;
         await Task.Delay(2000);
         NavigationManager.NavigateTo("/login");
-       
     }
-    
 }
 
 <style>
@@ -110,9 +97,9 @@
         outline: none;
     }
 
-    .input-field:focus {
-        border-color: #4A90E2;
-    }
+        .input-field:focus {
+            border-color: #4A90E2;
+        }
 
     .register-button {
         background-color: #4A90E2;
@@ -124,9 +111,9 @@
         font-size: 16px;
     }
 
-    .register-button:hover {
-        background-color: #357ABD;
-    }
+        .register-button:hover {
+            background-color: #357ABD;
+        }
 
     .message {
         text-align: center;
@@ -134,25 +121,19 @@
         font-size: 14px;
     }
 
-    .confirmation {
-        text-align: center;
-        margin-top: 20px;
-    }
-
     .login-link {
         text-align: center;
-          margin-top:340px;
-          margin-left:-250px;
+        margin-top: 340px;
+        margin-left: -250px;
         font-size: 14px;
     }
 
-    .login-link a {
-        color: #4A90E2;
-        text-decoration: none;
-     
-    }
+        .login-link a {
+            color: #4A90E2;
+            text-decoration: none;
+        }
 
-    .login-link a:hover {
-        text-decoration: underline;
-    }
+            .login-link a:hover {
+                text-decoration: underline;
+            }
 </style>

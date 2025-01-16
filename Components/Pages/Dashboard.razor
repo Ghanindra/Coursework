@@ -5,16 +5,30 @@
 @inject UserService UserService
 
 <h1>Dashboard</h1>
-
+<div class="col-md-4">
+    <h2>Total Balance</h2>
+    <p>
+        @if (Data.Transactions != null && Data.Transactions.Any())
+        {
+            var totalBalance = Data.Transactions.Sum(t => t.Credit) - Data.Transactions.Sum(t => t.Debit) +
+            (Data.Debts?.Sum(d => d.DebtAmount) ?? 0) - (Data.Debts?.Sum(d => d.PaidAmount) ?? 0);
+            <strong>Total Balance: @totalBalance.ToString("C")</strong>
+        }
+        else
+        {
+            <strong>Total Balance: $0.00</strong> <!-- If there are no transactions, show $0 -->
+        }
+    </p>
+</div>
 <div class="row">
     <div class="col-md-4">
         <h2>Data Overview</h2>
         <ul>
             <li>Total Inflows: @(Data.Transactions.Where(t => t.Credit > 0).Any() ? Data.Transactions.Where(t => t.Credit > 0).Sum(t => t.Credit) : 0)</li>
             <li>Total Outflows: @(Data.Transactions.Where(t => t.Debit > 0).Any() ? Data.Transactions.Where(t => t.Debit > 0).Sum(t => t.Debit) : 0)</li>
-            <li>Total Debts: @(Data.Debts.Any() ? Data.Debts.Sum(d => d.Amount) : 0)</li>
+            <li>Total Debts: @(Data.Debts.Any() ? Data.Debts.Sum(d => d.DebtAmount) : 0)</li>
             <li>Cleared Debts: @(Data.Debts.Any() ? Data.Debts.Sum(d => d.PaidAmount) : 0)</li>
-            <li>Remaining Debts: @(Data.Debts.Any() ? Data.Debts.Sum(d => d.Amount - d.PaidAmount) : 0)</li>
+            <li>Remaining Debts: @(Data.Debts.Any() ? Data.Debts.Where(d => d.DebtAmount > d.PaidAmount).Sum(d => d.DebtAmount - d.PaidAmount) : 0)</li> <!-- Remaining Debts -->
         </ul>
     </div>
 
@@ -27,36 +41,44 @@
             <li>Lowest Outflow: @(Data.Transactions.Where(t => t.Debit > 0).Any() ? Data.Transactions.Where(t => t.Debit > 0).Min(t => t.Debit) : 0)</li>
             <li>Highest Debt: @(Data.Debts.Any() ? Data.Debts.Max(d => d.Amount) : 0)</li>
             <li>Lowest Debt: @(Data.Debts.Where(d => d.Amount > 0).Any() ? Data.Debts.Where(d => d.Amount > 0).Min(d => d.Amount) : 0)</li>
-
         </ul>
     </div>
-
 
     <div class="col-md-4">
         <h2>Pending Debts</h2>
         <ul>
             @if (Data.Debts != null && Data.Debts.Any())
             {
-                @foreach (var debt in Data.Debts.Where(d => d.Amount > d.PaidAmount))
+                var pendingDebts = Data.Debts.Where(d => d.DebtAmount > d.PaidAmount).ToList();
+                  <!-- Filter debts that are not fully paid -->
+                @if (pendingDebts.Any())
                 {
-                    <!-- Only show debts that are not fully paid -->
+                    @foreach (var debt in pendingDebts)
+                    {
+                        
+                    }
                     <li>
-                        @debt.Description - Remaining: @(debt.Amount - debt.PaidAmount)
-
-
-                        <!-- Button to make a payment, which would clear the debt -->
-
+                        <strong>Total Pending Debts: @pendingDebts.Sum(d => d.DebtAmount - d.PaidAmount).ToString("C")</strong> <!-- Total Pending Debts -->
                     </li>
+                }
+                else
+                {
+                    <li>No pending debts.</li>  <!-- Message if there are no pending debts -->
                 }
             }
             else
             {
-                <li>No pending debts.</li>  <!-- Message if there are no pending debts -->
+                <li>No pending debts.</li>  <!-- Message if no debts exist -->
             }
         </ul>
     </div>
 
+
 </div>
+
+<!-- Remaining Transaction List code remains the same -->
+
+
 
 <h2>Transaction List</h2>
 <div>

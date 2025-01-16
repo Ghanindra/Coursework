@@ -17,6 +17,7 @@ namespace Coursework.Models
         public List<Debt> Debts { get; set; } = new();
 
         public List<Transaction> Transactions { get; set; } = new();
+        public decimal TotalBalance { get; set; } = 0;
 
     }
 }

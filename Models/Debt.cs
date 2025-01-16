@@ -11,12 +11,14 @@ namespace Coursework.Models
     public class Debt
     {
         public int Id { get; set; }
-
-        public decimal Amount { get; set; } // Total debt amount
-        public decimal PaidAmount { get; set; } // Amount paid towards debt
-        public DateTime Date { get; set; }
-        public string Description { get; set; }
-        public string Status { get; set; } = "Outstanding";
+        public decimal DebtAmount { get; set; }
+        public decimal Amount { get; set; }
+        // Debt amount
+        public decimal PaidAmount { get; set; }  // Amount paid
+        public decimal RemainingAmount => DebtAmount - PaidAmount; // Remaining amount
+        public string Description { get; set; }  // Description of the debt
+        public DateTime DueDate { get; set; }    // Due date for the debt
     }
+
 }
 

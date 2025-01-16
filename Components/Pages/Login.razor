@@ -3,21 +3,25 @@
 @using Coursework.Models
 @inject NavigationManager NavigationManager
 
-<h3>Login</h3>
 
-<div>
-    <input @bind="LoginUsername" placeholder="Username" />
-    <input @bind="LoginPassword" placeholder="Password" type="password" />
-    <button @onclick="LoginUser">Login</button>
-</div>
 
-@if (!string.IsNullOrEmpty(Message))
-{
-    <p>@Message</p>
-}
-   <div class="register-link">
+<div class="login-container">
+    <div class="login-form">
+        <h3>Login</h3>
+        <input @bind="LoginUsername" class="input-field" placeholder="Username" />
+        <input @bind="LoginPassword" class="input-field" placeholder="Password" type="password" />
+        <button @onclick="LoginUser" class="login-button">Login</button>
+
+        @if (!string.IsNullOrEmpty(Message))
+        {
+            <p class="message">@Message</p>
+        }
+        <div class="register-link">
             <p>Create an Account? <a href="/register">Sign up</a></p>
         </div>
+    </div>
+</div>
+
 @code {
     private string LoginUsername = "";
     private string LoginPassword = "";
@@ -52,11 +56,12 @@
         }
 
         // Successful login
-        Message = "Login successful! Redirecting to home...";
+        Message = "Login successful! Redirecting to dashboard...";
         await Task.Delay(2000);
         NavigationManager.NavigateTo("/dashboard");
     }
 }
+
 <style>
     .login-container {
         display: flex;
@@ -80,7 +85,7 @@
     h3 {
         text-align: center;
         margin-bottom: 20px;
-        color: #333;
+         color: #333; 
     }
 
     .input-field {

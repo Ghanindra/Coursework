@@ -46,9 +46,18 @@ public class UserService
         // Serialize AppData object into JSON
         var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
         // Write JSON content to the file
+        RecalculateTotalBalance(data);
         File.WriteAllText(FilePath, json);
     }
+    public decimal TotalBalance { get; set; }
 
+    public void RecalculateTotalBalance(AppData data)
+    {
+        TotalBalance = data.Transactions.Sum(t => t.Credit) - data.Transactions.Sum(t => t.Debit) +
+                       (data.Debts?.Sum(d => d.DebtAmount) ?? 0) - (data.Debts?.Sum(d => d.PaidAmount) ?? 0);
+    }
+
+   
     // Manage Users within AppData
     public List<User> LoadUsers()
     {
